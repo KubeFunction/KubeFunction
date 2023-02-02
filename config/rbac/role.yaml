@@ -1,0 +1,33 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  name: manager-role
+rules:
+- apiGroups:
+  - core.kubefunction.io
+  resources:
+  - functions
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - core.kubefunction.io
+  resources:
+  - functions/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - core.kubefunction.io
+  resources:
+  - functions/status
+  verbs:
+  - get
+  - patch
+  - update

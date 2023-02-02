@@ -1,0 +1,27 @@
+# permissions for end users to view functionevents.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: clusterrole
+    app.kubernetes.io/instance: functionevent-viewer-role
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: kubefunction
+    app.kubernetes.io/part-of: kubefunction
+    app.kubernetes.io/managed-by: kustomize
+  name: functionevent-viewer-role
+rules:
+- apiGroups:
+  - core.kubefunction.io
+  resources:
+  - functionevents
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - core.kubefunction.io
+  resources:
+  - functionevents/status
+  verbs:
+  - get
