@@ -23,6 +23,7 @@ import (
 	"github.com/KubeFunction/KubeFunction/util/fieldindex"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -125,9 +126,13 @@ func TestReconcile(t *testing.T) {
 func checkPodEqual(c client.WithWatch, t *testing.T, expect []*v1.Pod) bool {
 	for i := range expect {
 		obj := expect[i]
-		pod := &v1.Pod{}
-		err := c.Get(context.TODO(), client.ObjectKey{Namespace: obj.Namespace, Name: obj.Name}, pod)
-		if err != nil {
+		opts := &client.ListOptions{
+			Namespace:     obj.Namespace,
+			FieldSelector: fields.SelectorFromSet(fields.Set{fieldindex.IndexNameForOwnerRefUID: string(functionEventDemo.UID)}),
+		}
+		podList := &v1.PodList{}
+		err := c.List(context.TODO(), podList, opts)
+		if err != nil || len(podList.Items) == 0 {
 			t.Fatalf("get pod failed %v", err)
 			return false
 		}
