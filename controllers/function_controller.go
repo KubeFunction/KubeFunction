@@ -18,8 +18,8 @@ package controllers
 
 import (
 	"context"
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	corev1alpha1 "github.com/KubeFunction/KubeFunction/api/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -55,7 +55,6 @@ func (r *FunctionReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 func (r *FunctionReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&corev1alpha1.Function{}).
-		Owns(&corev1alpha1.FunctionEvent{}).
-		Owns(&v1.Pod{}).
+		Watches(&source.Kind{Type: &corev1alpha1.FunctionEvent{}}, &enqueueRequestForFunctionEvent{reader: mgr.GetCache()}).
 		Complete(r)
 }

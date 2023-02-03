@@ -8,6 +8,32 @@ rules:
 - apiGroups:
   - core.kubefunction.io
   resources:
+  - functionevents
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - core.kubefunction.io
+  resources:
+  - functionevents/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - core.kubefunction.io
+  resources:
+  - functionevents/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - core.kubefunction.io
+  resources:
   - functions
   verbs:
   - create

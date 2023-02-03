@@ -18,6 +18,7 @@ package main
 
 import (
 	"flag"
+	"github.com/KubeFunction/KubeFunction/util/fieldindex"
 	"os"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -96,8 +97,18 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "Function")
 		os.Exit(1)
 	}
+	if err = (&controllers.FunctionEventReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "FunctionEvent")
+		os.Exit(1)
+	}
 	//+kubebuilder:scaffold:builder
-
+	if err := fieldindex.RegisterFieldIndexes(mgr.GetCache()); err != nil {
+		setupLog.Error(err, "unable to register filed index")
+		os.Exit(1)
+	}
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
 		setupLog.Error(err, "unable to set up health check")
 		os.Exit(1)

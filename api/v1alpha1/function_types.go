@@ -31,7 +31,7 @@ type FunctionSpec struct {
 	RevisionHistoryLimit int32 `json:"revisionHistoryLimit,omitempty"`
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +kubebuilder:validation:Schemaless
-	Template v1.PodTemplate `json:"template"`
+	Template v1.PodTemplateSpec `json:"template"`
 }
 
 // FunctionStatus defines the observed state of Function

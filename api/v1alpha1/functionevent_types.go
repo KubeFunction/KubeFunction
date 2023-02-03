@@ -29,6 +29,7 @@ type FunctionEventSpec struct {
 	// Important: Run "make" to regenerate code after modifying this file
 	FunctionName string   `json:"functionName,omitempty"`
 	Args         []string `json:"args,omitempty"`
+	Replicas     *int32   `json:"replicas,omitempty"`
 }
 
 // FunctionEventStatus defines the observed state of FunctionEvent
