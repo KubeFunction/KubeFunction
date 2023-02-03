@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	corev1alpha1 "github.com/KubeFunction/KubeFunction/api/v1alpha1"
+	"github.com/KubeFunction/KubeFunction/util/controllerutils"
 	"github.com/KubeFunction/KubeFunction/util/fieldindex"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -108,7 +109,6 @@ func (r *FunctionEventReconciler) getOwnedPod(instance *corev1alpha1.FunctionEve
 }
 
 func (r *FunctionEventReconciler) syncFunctionEvent(activePods, completedPods []*v1.Pod, instance *corev1alpha1.FunctionEvent) error {
-	klog.Infof("....here")
 	if instance.Spec.Replicas == nil {
 		return fmt.Errorf("functionEvent.Spec.Replicas can't be nil")
 	}
@@ -134,11 +134,12 @@ func (r *FunctionEventReconciler) syncFunctionEvent(activePods, completedPods []
 		return err
 	}
 	// create pod
-	klog.Infof("create pod.....")
+	podTemplateHash := controllerutils.ComputeHash(&function.Spec.Template)
 	wasmPod := &v1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: instance.Namespace,
-			Name:      fmt.Sprintf("test-%s", instance.Name), //TODO
+			Namespace:    instance.Namespace,
+			GenerateName: fmt.Sprintf("%s-%s-", instance.Name, podTemplateHash), //TODO
+			Labels:       map[string]string{corev1alpha1.DefaultFunctionEventUniqueLabelKey: podTemplateHash},
 			OwnerReferences: []metav1.OwnerReference{
 				*metav1.NewControllerRef(instance, corev1alpha1.GroupVersion.WithKind("FunctionEvent")),
 			},
@@ -146,7 +147,7 @@ func (r *FunctionEventReconciler) syncFunctionEvent(activePods, completedPods []
 		Spec: function.Spec.Template.Spec,
 	}
 	err = r.Create(context.TODO(), wasmPod)
-	klog.Infof("pod name %s/%s: %v", wasmPod.Namespace, wasmPod.Name, err)
+	klog.V(3).Infof("pod name %s/%s: %v", wasmPod.Namespace, wasmPod.Name, err)
 	return err
 }
 
