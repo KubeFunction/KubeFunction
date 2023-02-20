@@ -46,6 +46,9 @@ var (
 		Spec: v1alpha1.FunctionEventSpec{
 			FunctionName: functionDemo.Name,
 			Replicas:     &replicas,
+			Command:      []string{"greet"},
+			Args:         []string{"wasmEdge"},
+			Timeout:      10,
 		},
 	}
 	runtimeClassName = "wasmrun"

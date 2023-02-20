@@ -27,9 +27,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -66,7 +71,6 @@ func (r *FunctionEventReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	if functionEvent.DeletionTimestamp != nil {
 		return reconcile.Result{}, nil
 	}
-
 	// 1.list all active and completed Pods belongs to the functionEvent
 	activePods, completedPods, err := r.getOwnedPod(functionEvent)
 	if err != nil {
@@ -78,10 +82,43 @@ func (r *FunctionEventReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return reconcile.Result{}, err
 	}
 	// 3.update status
-
+	err = r.updateStatus(functionEvent, activePods, completedPods)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
 	// 4. truncate revision history
 
 	return ctrl.Result{}, nil
+}
+func (r *FunctionEventReconciler) updateStatus(instance *corev1alpha1.FunctionEvent, activePods, completedPods []*v1.Pod) error {
+	newStatus := &corev1alpha1.FunctionEventStatus{}
+	r.calculateStatus(newStatus, activePods, completedPods)
+	return retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+		clone := &corev1alpha1.FunctionEvent{}
+		if err := r.Get(context.TODO(), types.NamespacedName{Namespace: instance.Namespace, Name: instance.Name}, clone); err != nil {
+			return err
+		}
+		clone.Status = *newStatus
+		clone.Annotations = instance.Annotations
+		return r.Status().Update(context.TODO(), clone)
+	})
+}
+
+func (r *FunctionEventReconciler) calculateStatus(newStatus *corev1alpha1.FunctionEventStatus, activePods, completedPods []*v1.Pod) {
+	// TODO
+	if len(activePods) > 0 {
+		pod := activePods[0]
+		newStatus.Phase = pod.Status.Phase
+		return
+	}
+	if len(completedPods) > 0 {
+		pod := completedPods[0]
+		newStatus.Phase = pod.Status.Phase
+		newStatus.Reason = pod.Status.ContainerStatuses[0].State.Terminated.Reason
+		newStatus.ExistCode = pod.Status.ContainerStatuses[0].State.Terminated.ExitCode
+		newStatus.FinishedAt = pod.Status.ContainerStatuses[0].State.Terminated.FinishedAt
+		newStatus.StartTime = pod.Status.ContainerStatuses[0].State.Terminated.StartedAt
+	}
 }
 
 func (r *FunctionEventReconciler) getOwnedPod(instance *corev1alpha1.FunctionEvent) ([]*v1.Pod, []*v1.Pod, error) {
@@ -115,9 +152,10 @@ func (r *FunctionEventReconciler) syncFunctionEvent(activePods, completedPods []
 	klog.Infof("len(activePods) %d,len(completedPods) %d", len(activePods), len(completedPods))
 	realPodsReplicas := len(activePods) + len(completedPods)
 	replicas := int(*instance.Spec.Replicas)
-	// 1. user's function is existed
+	// 1. user's function exited
 	if len(activePods) == 0 && realPodsReplicas == replicas {
 		// this means is activePods==0 && completedPods=replicas
+		// TODO update functionEvent.spec
 		return nil
 	}
 	// 2. is running
@@ -125,7 +163,7 @@ func (r *FunctionEventReconciler) syncFunctionEvent(activePods, completedPods []
 		return nil
 	}
 
-	// 3. nod pods belongs to th functionEvent
+	// 3. no pods belong to this functionEvent
 
 	// get function
 	function := &corev1alpha1.Function{}
@@ -134,17 +172,32 @@ func (r *FunctionEventReconciler) syncFunctionEvent(activePods, completedPods []
 		return err
 	}
 	// create pod
+	podSpec := function.Spec.Template.Spec.DeepCopy()
 	podTemplateHash := controllerutils.ComputeHash(&function.Spec.Template)
+	if len(instance.Spec.Args) != 0 {
+		podSpec.Containers[0].Args = instance.Spec.Args
+	}
+	if len(instance.Spec.Command) != 0 {
+		podSpec.Containers[0].Command = instance.Spec.Command
+	}
+	var annotations map[string]string
+	if instance.Annotations == nil {
+		annotations = make(map[string]string)
+	} else {
+		annotations = instance.Annotations
+	}
+	annotations[corev1alpha1.FunctionTimeoutAnnotationKey] = string(instance.Spec.Timeout)
 	wasmPod := &v1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:    instance.Namespace,
-			GenerateName: fmt.Sprintf("%s-%s-", instance.Name, podTemplateHash), //TODO
+			GenerateName: fmt.Sprintf("%s-%s-", instance.Name, podTemplateHash),
 			Labels:       map[string]string{corev1alpha1.DefaultFunctionEventUniqueLabelKey: podTemplateHash},
+			Annotations:  annotations,
 			OwnerReferences: []metav1.OwnerReference{
 				*metav1.NewControllerRef(instance, corev1alpha1.GroupVersion.WithKind("FunctionEvent")),
 			},
 		},
-		Spec: function.Spec.Template.Spec,
+		Spec: *podSpec,
 	}
 	err = r.Create(context.TODO(), wasmPod)
 	klog.V(3).Infof("pod name %s/%s: %v", wasmPod.Namespace, wasmPod.Name, err)
@@ -154,7 +207,28 @@ func (r *FunctionEventReconciler) syncFunctionEvent(activePods, completedPods []
 // SetupWithManager sets up the controller with the Manager.
 func (r *FunctionEventReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
+		Named("functionevent-controller").
 		For(&corev1alpha1.FunctionEvent{}).
-		Owns(&v1.Pod{}).
+		Owns(&v1.Pod{}, builder.WithPredicates(predicate.Funcs{
+			CreateFunc: func(event event.CreateEvent) bool {
+				klog.Infof("skip pod create event in function event reconcile loop")
+				return false //skip pod create event
+			},
+			UpdateFunc: func(updateEvent event.UpdateEvent) bool {
+				oldPod := updateEvent.ObjectOld.(*v1.Pod)
+				newPod := updateEvent.ObjectNew.(*v1.Pod)
+				if oldPod.GetResourceVersion() == newPod.GetResourceVersion() {
+					return false
+				}
+				if newPod.GetDeletionTimestamp() != nil {
+					return false
+				}
+
+				return true
+			},
+			DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
+				return true
+			},
+		})).
 		Complete(r)
 }

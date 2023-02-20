@@ -39,6 +39,10 @@ spec:
                 items:
                   type: string
                 type: array
+              command:
+                items:
+                  type: string
+                type: array
               functionName:
                 description: 'INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
                   Important: Run "make" to regenerate code after modifying this file'
@@ -46,11 +50,15 @@ spec:
               replicas:
                 format: int32
                 type: integer
+              timeout:
+                format: int32
+                type: integer
             type: object
           status:
             description: FunctionEventStatus defines the observed state of FunctionEvent
             properties:
               existCode:
+                format: int32
                 type: integer
               finishedAt:
                 format: date-time
@@ -61,6 +69,9 @@ spec:
                   this file'
                 type: string
               reason:
+                type: string
+              startTime:
+                format: date-time
                 type: string
             type: object
         type: object

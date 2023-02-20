@@ -17,11 +17,13 @@ limitations under the License.
 package v1alpha1
 
 import (
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
 	DefaultFunctionEventUniqueLabelKey string = "pod-template-hash"
+	FunctionTimeoutAnnotationKey       string = "core.kubefunction.io/function-timeout"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -33,17 +35,20 @@ type FunctionEventSpec struct {
 	// Important: Run "make" to regenerate code after modifying this file
 	FunctionName string   `json:"functionName,omitempty"`
 	Args         []string `json:"args,omitempty"`
+	Command      []string `json:"command,omitempty"`
 	Replicas     *int32   `json:"replicas,omitempty"`
+	Timeout      int32    `json:"timeout,omitempty"`
 }
 
 // FunctionEventStatus defines the observed state of FunctionEvent
 type FunctionEventStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
-	Phase      string       `json:"phase,omitempty"`
-	FinishedAt *metav1.Time `json:"finishedAt,omitempty"`
-	ExistCode  int          `json:"existCode,omitempty"`
-	Reason     string       `json:"reason,omitempty"`
+	Phase      v1.PodPhase `json:"phase,omitempty"`
+	FinishedAt metav1.Time `json:"finishedAt,omitempty"`
+	ExistCode  int32       `json:"existCode,omitempty"`
+	Reason     string      `json:"reason,omitempty"`
+	StartTime  metav1.Time `json:"startTime,omitempty"`
 }
 
 //+kubebuilder:object:root=true

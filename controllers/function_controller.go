@@ -54,6 +54,7 @@ func (r *FunctionReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 // SetupWithManager sets up the controller with the Manager.
 func (r *FunctionReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
+		Named("function-controller").
 		For(&corev1alpha1.Function{}).
 		Watches(&source.Kind{Type: &corev1alpha1.FunctionEvent{}}, &enqueueRequestForFunctionEvent{reader: mgr.GetCache()}).
 		Complete(r)
