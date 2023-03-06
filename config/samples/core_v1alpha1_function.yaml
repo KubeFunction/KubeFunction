@@ -9,4 +9,14 @@ metadata:
     app.kubernetes.io/created-by: kubefunction
   name: function-sample
 spec:
-  # TODO(user): Add fields here
+  revisionHistoryLimit: 10
+  template:
+    metadata:
+      labels:
+        app: wasmrun
+    spec:
+      runtimeClassName: wasmrun
+      restartPolicy: Never
+      containers:
+        - name: testwasm
+          image: docker.io/duizhang/hello-wasm:9.0

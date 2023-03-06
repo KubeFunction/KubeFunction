@@ -9,4 +9,9 @@ metadata:
     app.kubernetes.io/created-by: kubefunction
   name: functionevent-sample
 spec:
-  # TODO(user): Add fields here
+  functionName: wasmrun-function
+  replicas: 1
+  command:
+    - "greet"
+  args:
+    - "KubeFunction"
