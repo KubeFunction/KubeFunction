@@ -46,8 +46,9 @@ type FunctionStatus struct {
 	Reason          string       `json:"reason,omitempty"`
 }
 
-//+kubebuilder:object:root=true
-//+kubebuilder:subresource:status
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
+// +kubebuilder:resource:shortName=fn
 
 // Function is the Schema for the functions API
 type Function struct {

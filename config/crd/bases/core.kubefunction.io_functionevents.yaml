@@ -12,10 +12,28 @@ spec:
     kind: FunctionEvent
     listKind: FunctionEventList
     plural: functionevents
+    shortNames:
+    - fe
     singular: functionevent
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - description: The desired number of functions.
+      jsonPath: .spec.replicas
+      name: REPLICAS
+      type: string
+    - description: The status of the function event.
+      jsonPath: .status.phase
+      name: STATUS
+      type: string
+    - description: CreationTimestamp is a timestamp representing the server time when
+        this object was created. It is not guaranteed to be set in happens-before
+        order across separate operations. Clients may not set this value. It is represented
+        in RFC3339 form and is in UTC.
+      jsonPath: .metadata.creationTimestamp
+      name: AGE
+      type: date
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: FunctionEvent is the Schema for the functionevents API
