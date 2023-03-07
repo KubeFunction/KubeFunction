@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+
 	corev1alpha1 "github.com/KubeFunction/KubeFunction/api/v1alpha1"
 	"github.com/KubeFunction/KubeFunction/util/controllerutils"
 	"github.com/KubeFunction/KubeFunction/util/fieldindex"
@@ -217,10 +218,11 @@ func (r *FunctionEventReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			UpdateFunc: func(updateEvent event.UpdateEvent) bool {
 				oldPod := updateEvent.ObjectOld.(*v1.Pod)
 				newPod := updateEvent.ObjectNew.(*v1.Pod)
-				if oldPod.GetResourceVersion() == newPod.GetResourceVersion() {
+				if !newPod.GetDeletionTimestamp().IsZero() {
 					return false
 				}
-				if newPod.GetDeletionTimestamp() != nil {
+
+				if oldPod.GetResourceVersion() == newPod.GetResourceVersion() {
 					return false
 				}
 
