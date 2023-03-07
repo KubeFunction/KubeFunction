@@ -201,7 +201,7 @@ func (r *FunctionEventReconciler) syncFunctionEvent(activePods, completedPods []
 		Spec: *podSpec,
 	}
 	err = r.Create(context.TODO(), wasmPod)
-	klog.V(3).Infof("pod name %s/%s: %v", wasmPod.Namespace, wasmPod.Name, err)
+	klog.V(3).Infof("pod name %s/%s", wasmPod.Namespace, wasmPod.Name)
 	return err
 }
 
