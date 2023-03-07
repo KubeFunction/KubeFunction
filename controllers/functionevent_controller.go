@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+
 	corev1alpha1 "github.com/KubeFunction/KubeFunction/api/v1alpha1"
 	"github.com/KubeFunction/KubeFunction/util/controllerutils"
 	"github.com/KubeFunction/KubeFunction/util/fieldindex"
@@ -58,7 +59,7 @@ type FunctionEventReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.14.1/pkg/reconcile
 func (r *FunctionEventReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	klog.Infof("test reconcile in function event %s", req.String())
+	klog.V(3).Infof("reconcile in function event %s", req.String())
 	functionEvent := &corev1alpha1.FunctionEvent{}
 	err := r.Get(ctx, req.NamespacedName, functionEvent)
 	if err != nil {
@@ -149,7 +150,7 @@ func (r *FunctionEventReconciler) syncFunctionEvent(activePods, completedPods []
 	if instance.Spec.Replicas == nil {
 		return fmt.Errorf("functionEvent.Spec.Replicas can't be nil")
 	}
-	klog.Infof("len(activePods) %d,len(completedPods) %d", len(activePods), len(completedPods))
+	klog.V(3).Infof("len(activePods) %d,len(completedPods) %d", len(activePods), len(completedPods))
 	realPodsReplicas := len(activePods) + len(completedPods)
 	replicas := int(*instance.Spec.Replicas)
 	// 1. user's function exited
@@ -200,7 +201,7 @@ func (r *FunctionEventReconciler) syncFunctionEvent(activePods, completedPods []
 		Spec: *podSpec,
 	}
 	err = r.Create(context.TODO(), wasmPod)
-	klog.V(3).Infof("pod name %s/%s: %v", wasmPod.Namespace, wasmPod.Name, err)
+	klog.V(3).Infof("pod name %s/%s", wasmPod.Namespace, wasmPod.Name)
 	return err
 }
 
@@ -211,16 +212,17 @@ func (r *FunctionEventReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&corev1alpha1.FunctionEvent{}).
 		Owns(&v1.Pod{}, builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(event event.CreateEvent) bool {
-				klog.Infof("skip pod create event in function event reconcile loop")
+				klog.V(3).Infof("skip pod create event in function event reconcile loop")
 				return false //skip pod create event
 			},
 			UpdateFunc: func(updateEvent event.UpdateEvent) bool {
 				oldPod := updateEvent.ObjectOld.(*v1.Pod)
 				newPod := updateEvent.ObjectNew.(*v1.Pod)
-				if oldPod.GetResourceVersion() == newPod.GetResourceVersion() {
+				if !newPod.GetDeletionTimestamp().IsZero() {
 					return false
 				}
-				if newPod.GetDeletionTimestamp() != nil {
+
+				if oldPod.GetResourceVersion() == newPod.GetResourceVersion() {
 					return false
 				}
 
